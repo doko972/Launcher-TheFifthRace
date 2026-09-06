@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Fifth Race — Launcher</title>
+<style>
+/* Polices servies depuis les ressources embarquees : aucun acces reseau. */
+@font-face { font-family:'Orbitron'; src:url('fonts/orbitron-var.woff2') format('woff2');
+             font-weight:400 900; font-display:block; }
+@font-face { font-family:'Rajdhani'; src:url('fonts/rajdhani-400.woff2') format('woff2');
+             font-weight:400; font-display:block; }
+@font-face { font-family:'Rajdhani'; src:url('fonts/rajdhani-600.woff2') format('woff2');
+             font-weight:600; font-display:block; }
+@font-face { font-family:'Rajdhani'; src:url('fonts/rajdhani-700.woff2') format('woff2');
+             font-weight:700; font-display:block; }
+
+/* Palette reprise de htdocs/css/styles.css pour rester coherent avec le site. */
+:root{
+  --bg:#020810; --surface:#0a1628; --surface-2:#0d1f3c;
+  --border:rgba(8,145,178,.18); --border-2:rgba(8,145,178,.4);
+  --primary:#0891b2; --primary-dark:#0e7490; --primary-light:#22d3ee;
+  --accent:#f59e0b; --accent-light:#fbbf24;
+  --text:#e2e8f0; --muted:#94a3b8; --faint:#475569;
+  --glow-sm:0 0 15px rgba(8,145,178,.3);
+  --glow-md:0 0 30px rgba(8,145,178,.45);
+  --danger:#f87171;
+  --radius:8px;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Rajdhani',sans-serif; font-size:15px;
+  user-select:none; cursor:default;
+  display:flex; flex-direction:column;
+  border:1px solid var(--border-2);
+}
+button{font-family:inherit;color:inherit;border:none;background:none;cursor:pointer}
+
+/* ---------- Fond ---------- */
+/* Image embarquee par defaut ; le manifeste peut en imposer une autre (splashUrl),
+   auquel cas elle n'est appliquee qu'une fois chargee — sinon celle-ci reste. */
+.bg{
+  position:fixed; inset:0; z-index:0;
+  background:url('hero.webp') center top / cover no-repeat;
+  animation:drift 70s ease-in-out infinite alternate;
+}
+/* Derive tres lente : donne de la vie sans deplacer le cadrage. */
+@keyframes drift{
+  from{transform:scale(1.02) translateX(-.5%)}
+  to  {transform:scale(1.06) translateX(.5%)}
+}
+/* Voile : assombrit l'image, la teinte vers le cyan et fond le bas dans le panneau. */
+.scrim{
+  position:fixed; inset:0; z-index:1; pointer-events:none;
+  background:
+    radial-gradient(ellipse 55% 42% at 50% 30%, rgba(8,145,178,.14), transparent 72%),
+    linear-gradient(180deg,
+      rgba(2,8,16,.55) 0%,
+      rgba(2,8,16,.12) 16%,
+      rgba(2,8,16,.16) 40%,
+      rgba(2,8,16,.62) 56%,
+      rgba(2,8,16,.92) 64%,
+      rgba(2,8,16,.98) 100%);
+}
+
+/* ---------- Barre de titre ---------- */
+.titlebar{
+  position:relative; z-index:3;
+  height:38px; flex:0 0 38px; display:flex; align-items:center; gap:10px;
+  padding:0 0 0 14px; background:rgba(2,8,16,.42);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);
+}
+.titlebar .mark{width:16px;height:16px;flex:0 0 16px;opacity:.9}
+.titlebar .name{
+  font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700;
+  letter-spacing:.18em; color:var(--muted);
+}
+.titlebar .grip{flex:1;align-self:stretch}
+.winbtn{
+  width:44px; align-self:stretch; color:var(--muted);
+  display:flex; align-items:center; justify-content:center;
+  transition:background .15s, color .15s;
+}
+.winbtn:hover{background:rgba(8,145,178,.25); color:var(--text)}
+.winbtn.close:hover{background:#b91c1c; color:#fff}
+
+/* ---------- Heros ---------- */
+.hero{
+  position:relative; z-index:2;
+  flex:1 1 auto; min-height:0; overflow:hidden;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:20px 0 18px;
+}
+.logo{
+  width:236px; height:auto; display:block; flex:0 0 auto;
+  filter:drop-shadow(0 6px 26px rgba(0,0,0,.85));
+  transition:filter 1.2s ease;
+}
+/* Le logo s'auréole une fois le client prêt à jouer. */
+body[data-phase="ready"] .logo,
+body[data-phase="offline"] .logo{
+  filter:drop-shadow(0 6px 26px rgba(0,0,0,.85))
+         drop-shadow(0 0 26px rgba(34,211,238,.55));
+}
+.tagline{
+  margin-top:14px; flex:0 0 auto;
+  font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700;
+  letter-spacing:.42em; text-transform:uppercase; color:var(--primary-light);
+  text-shadow:0 0 16px rgba(34,211,238,.6), 0 2px 6px rgba(0,0,0,.9);
+  padding-left:.42em;   /* compense l'interlettrage sur le dernier caractere */
+}
+
+/* ---------- Panneau bas ---------- */
+.panel{
+  position:relative; z-index:2; flex:0 0 auto;
+  background:rgba(6,16,30,.82);
+  backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border-top:1px solid var(--border-2); padding:16px 22px 18px;
+}
+.row{display:flex;align-items:flex-end;gap:16px}
+.field{flex:0 0 232px}
+.label{
+  font-size:10px; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--muted); font-weight:700; margin-bottom:5px;
+}
+
+/* Liste deroulante personnalisee : le <select> natif ne suit pas le theme. */
+.select{position:relative}
+.select .head{
+  width:100%; display:flex; align-items:center; justify-content:space-between;
+  gap:8px; padding:9px 12px; background:rgba(13,31,60,.85);
+  border:1px solid var(--border-2); border-radius:var(--radius);
+  font-size:15px; font-weight:600; transition:border-color .2s, box-shadow .2s;
+}
+.select .head:hover{border-color:var(--primary); box-shadow:var(--glow-sm)}
+.select .head svg{flex:0 0 10px;color:var(--primary-light);transition:transform .2s}
+.select.open .head svg{transform:rotate(180deg)}
+.select .list{
+  display:none; position:absolute; bottom:calc(100% + 6px); left:0; right:0;
+  background:rgba(11,26,48,.97); border:1px solid var(--border-2);
+  backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border-radius:var(--radius); overflow:hidden;
+  box-shadow:0 10px 30px rgba(0,0,0,.7); z-index:30;
+}
+.select.open .list{display:block}
+.select .opt{
+  display:block; width:100%; text-align:left; padding:9px 12px;
+  font-size:15px; font-weight:600; transition:background .12s;
+}
+.select .opt:hover{background:rgba(8,145,178,.25)}
+.select .opt[aria-selected="true"]{color:var(--primary-light)}
+
+/* Interrupteur mode dev */
+.toggle{display:flex;align-items:center;gap:9px;padding-bottom:9px;cursor:pointer}
+.toggle .track{
+  width:36px;height:19px;flex:0 0 36px;border-radius:10px;
+  background:rgba(13,31,60,.85); border:1px solid var(--border-2);
+  position:relative; transition:background .2s, border-color .2s;
+}
+.toggle .track::after{
+  content:''; position:absolute; top:2px; left:2px; width:13px; height:13px;
+  border-radius:50%; background:var(--faint); transition:transform .2s, background .2s;
+}
+.toggle.on .track{background:rgba(8,145,178,.45); border-color:var(--primary)}
+.toggle.on .track::after{transform:translateX(17px); background:var(--primary-light)}
+.toggle span{font-size:13px;color:var(--muted);font-weight:600}
+.toggle:hover span{color:var(--text)}
+
+.spacer{flex:1}
+
+/* Bouton JOUER */
+.play{
+  flex:0 0 auto; min-width:172px; padding:13px 30px;
+  font-family:'Orbitron',sans-serif; font-size:15px; font-weight:700;
+  letter-spacing:.16em; text-transform:uppercase; color:#02131a;
+  background:linear-gradient(135deg, var(--primary-light), var(--primary));
+  border-radius:var(--radius); box-shadow:var(--glow-md);
+  transition:transform .15s, box-shadow .2s, filter .2s;
+}
+.play:hover:not(:disabled){transform:translateY(-1px); filter:brightness(1.1);
+  box-shadow:0 0 42px rgba(34,211,238,.6)}
+.play:active:not(:disabled){transform:translateY(0)}
+.play:disabled{
+  background:rgba(13,31,60,.7); color:var(--faint);
+  box-shadow:none; cursor:default; border:1px solid var(--border);
+}
+
+/* ---------- Progression ---------- */
+.progress{margin-top:15px}
+.pline{display:flex;align-items:baseline;gap:10px;margin-bottom:7px}
+.status{font-size:15px;font-weight:600;color:var(--text)}
+body[data-phase="error"] .status{color:var(--danger)}
+body[data-phase="offline"] .status{color:var(--accent-light)}
+.pct{
+  margin-left:auto; font-family:'Orbitron',sans-serif;
+  font-size:12px; font-weight:700; color:var(--primary-light);
+}
+.bar{
+  height:5px; border-radius:3px; background:rgba(13,31,60,.9);
+  border:1px solid var(--border); overflow:hidden; position:relative;
+}
+.fill{
+  height:100%; width:0%; border-radius:3px;
+  background:linear-gradient(90deg, var(--primary), var(--primary-light));
+  box-shadow:0 0 12px rgba(34,211,238,.7);
+  transition:width .25s ease;
+}
+body[data-phase="error"] .fill{background:var(--danger);box-shadow:none}
+/* Balayage anime pendant le travail. */
+body[data-busy="1"] .bar::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(90deg, transparent, rgba(34,211,238,.35), transparent);
+  animation:sweep 1.5s ease-in-out infinite;
+}
+@keyframes sweep{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.detail{
+  display:flex; gap:10px; margin-top:7px; font-size:12.5px; color:var(--muted);
+  min-height:18px;
+}
+.detail .right{margin-left:auto;font-variant-numeric:tabular-nums}
+.detail .txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- Pied ---------- */
+.foot{
+  display:flex; align-items:center; gap:16px; margin-top:13px;
+  padding-top:12px; border-top:1px solid var(--border);
+  font-size:12.5px; color:var(--faint);
+}
+.link{color:var(--muted);font-weight:600;transition:color .15s}
+.link:hover{color:var(--primary-light)}
+.foot .ver{margin-left:auto;font-variant-numeric:tabular-nums}
+.hidden{display:none !important}
+</style>
+</head>
+<body data-phase="init" data-busy="1">
+
+  <div class="bg" id="bg"></div>
+  <div class="scrim"></div>
+
+  <div class="titlebar">
+    <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9.2" stroke="#22d3ee" stroke-width="2.2"/>
+      <circle cx="12" cy="12" r="4.6" fill="rgba(34,211,238,.35)"/>
+    </svg>
+    <div class="name">The Fifth Race</div>
+    <div class="grip" id="grip"></div>
+    <button class="winbtn" id="btn-min" title="Minimise" aria-label="Minimise">
+      <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true">
+        <rect x="0" y="5" width="11" height="1.2" fill="currentColor"/></svg>
+    </button>
+    <button class="winbtn close" id="btn-close" title="Close" aria-label="Close">
+      <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true">
+        <path d="M0 0 L11 11 M11 0 L0 11" stroke="currentColor" stroke-width="1.3"/></svg>
+    </button>
+  </div>
+
+  <div class="hero">
+    <img class="logo" src="logo.png" alt="The Fifth Race">
+    <div class="tagline">Launcher</div>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <div class="field">
+        <div class="label">Server</div>
+        <div class="select" id="select">
+          <button class="head" id="select-head" aria-haspopup="listbox" aria-expanded="false">
+            <span id="select-value">—</span>
+            <svg viewBox="0 0 10 6" width="10" height="6" fill="none" aria-hidden="true">
+              <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6"
+                    stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="list" id="select-list" role="listbox"></div>
+        </div>
+      </div>
+
+      <div class="toggle" id="dev" role="switch" aria-checked="false" tabindex="0">
+        <div class="track"></div>
+        <span>Editor files</span>
+      </div>
+
+      <div class="spacer"></div>
+      <button class="play" id="play" disabled>Play</button>
+    </div>
+
+    <div class="progress">
+      <div class="pline">
+        <span class="status" id="status">Starting…</span>
+        <span class="pct" id="pct"></span>
+      </div>
+      <div class="bar"><div class="fill" id="fill"></div></div>
+      <div class="detail">
+        <span class="txt" id="detail"></span>
+        <span class="right" id="bytes"></span>
+      </div>
+    </div>
+
+    <div class="foot">
+      <button class="link" id="change-dir">Change game folder</button>
+      <button class="link hidden" id="retry">Retry</button>
+      <span class="ver" id="ver"></span>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var host = window.chrome && window.chrome.webview;
+
+  function send(cmd, value) {
+    if (host) host.postMessage(JSON.stringify({ cmd: cmd, value: value }));
+  }
+
+  // ---- Barre de titre : le glisser-deplacer est relaye a l'hote -------------
+  $('grip').addEventListener('mousedown', function (e) {
+    if (e.button === 0) send('drag');
+  });
+  $('btn-min').addEventListener('click', function () { send('minimize'); });
+  $('btn-close').addEventListener('click', function () { send('close'); });
+
+  // ---- Liste deroulante -----------------------------------------------------
+  var sel = $('select'), selHead = $('select-head'), selList = $('select-list');
+  var shards = [], currentShard = '';
+
+  selHead.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var open = sel.classList.toggle('open');
+    selHead.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function () {
+    sel.classList.remove('open');
+    selHead.setAttribute('aria-expanded', 'false');
+  });
+
+  function renderShards() {
+    selList.innerHTML = '';
+    var label = '—';
+    shards.forEach(function (s) {
+      var b = document.createElement('button');
+      b.className = 'opt';
+      b.type = 'button';
+      b.textContent = s.name;
+      b.setAttribute('role', 'option');
+      b.setAttribute('aria-selected', s.arg === currentShard ? 'true' : 'false');
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        currentShard = s.arg;
+        sel.classList.remove('open');
+        send('shard', s.arg);
+        renderShards();
+      });
+      selList.appendChild(b);
+      if (s.arg === currentShard) label = s.name;
+    });
+    $('select-value').textContent = label;
+  }
+
+  // ---- Mode developpeur -----------------------------------------------------
+  var dev = $('dev');
+  function toggleDev() {
+    var on = !dev.classList.contains('on');
+    dev.classList.toggle('on', on);
+    dev.setAttribute('aria-checked', on ? 'true' : 'false');
+    send('dev', on);
+  }
+  dev.addEventListener('click', toggleDev);
+  dev.addEventListener('keydown', function (e) {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleDev(); }
+  });
+
+  // ---- Actions --------------------------------------------------------------
+  $('play').addEventListener('click', function () { send('play'); });
+  $('change-dir').addEventListener('click', function () { send('changeDir'); });
+  $('retry').addEventListener('click', function () { send('retry'); });
+
+  // ---- Fond impose par le manifeste ----------------------------------------
+  // On ne remplace l'image embarquee qu'apres chargement reussi : hors ligne ou
+  // sur URL cassee, le fond par defaut reste affiche.
+  var splashApplied = '';
+  function applySplash(url) {
+    if (!url || url === splashApplied) return;
+    var probe = new Image();
+    probe.onload = function () {
+      splashApplied = url;
+      $('bg').style.backgroundImage = 'url("' + url.replace(/"/g, '%22') + '")';
+    };
+    probe.src = url;
+  }
+
+  // ---- Mise en forme --------------------------------------------------------
+  function human(n) {
+    var u = ['o', 'ko', 'Mo', 'Go'], i = 0, v = n;
+    while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+    return v.toFixed(i === 0 ? 0 : 1).replace('.', ',') + ' ' + u[i];
+  }
+
+  // ---- Point d'entree appele par le C# --------------------------------------
+  window.sgw = {
+    setState: function (s) {
+      document.body.dataset.phase = s.phase;
+      document.body.dataset.busy = s.busy ? '1' : '0';
+
+      $('status').textContent = s.status || '';
+      $('detail').textContent = s.detail || '';
+      $('fill').style.width = Math.max(0, Math.min(1, s.progress || 0)) * 100 + '%';
+
+      // Le pourcentage n'a de sens que pendant un telechargement chiffre.
+      if (s.phase === 'downloading' && s.bytesTotal > 0) {
+        $('pct').textContent = Math.round(s.progress * 100) + ' %';
+        $('bytes').textContent = human(s.bytesDone) + ' / ' + human(s.bytesTotal);
+      } else {
+        $('pct').textContent = '';
+        $('bytes').textContent = '';
+      }
+
+      $('play').disabled = !s.canPlay;
+      $('retry').classList.toggle('hidden', s.phase !== 'error' && s.phase !== 'offline');
+
+      $('ver').textContent = 'Launcher v' + s.launcherVersion +
+        (s.version ? '  ·  Client ' + s.version : '');
+
+      dev.classList.toggle('on', !!s.devMode);
+      dev.setAttribute('aria-checked', s.devMode ? 'true' : 'false');
+
+      applySplash(s.splashUrl);
+
+      var changed = JSON.stringify(s.shards) !== JSON.stringify(shards) ||
+                    s.shard !== currentShard;
+      if (changed) { shards = s.shards || []; currentShard = s.shard || ''; renderShards(); }
+    }
+  };
+
+  send('ready');   // l'hote peut pousser le premier etat
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+# Sortie de compilation : SGWLauncher.exe et AssemblyInfo.generated.cs
+build/
+
+# Reliquats d'une auto-mise a jour testee en local
+*.exe.old
+*.exe.new
